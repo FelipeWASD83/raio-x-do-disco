@@ -2,7 +2,7 @@
 
 App de janela em Python (tkinter, só biblioteca padrão) que lê um disco inteiro e mostra o que ocupa espaço,
 no estilo do TreeSize/WizTree. Roda só no PC do Felipe. Versão em `versao.json` e no topo do `CHANGELOG.md`
-(andam juntos). Criado em 21/10/2026.
+(andam juntos). Criado em 21/10/2026; repositório **público** (MIT).
 
 ## Como roda
 

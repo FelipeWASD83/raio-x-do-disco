@@ -23,7 +23,7 @@ from pathlib import Path
 
 from app import config
 
-GERENCIADOS = ["app", "icone", "iniciar.pyw", "instalar.bat", "versao.json", "README.md", "CHANGELOG.md"]
+GERENCIADOS = ["app", "icone", "iniciar.pyw", "instalar.bat", "versao.json", "README.md", "CHANGELOG.md", "LICENSE"]
 PASTA = config.DADOS / "atualizacao"
 _CACHE = PASTA / "checagem.json"
 _PRONTA = PASTA / "pronta.json"
