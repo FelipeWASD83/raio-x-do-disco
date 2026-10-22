@@ -20,7 +20,15 @@ O `.venv` não tem pacote nenhum: existe só para o atalho ter um `pythonw` de c
   ou 32; o gargalo é a abertura de pasta no Windows, o parse em Python é ~10% do tempo). Sistema de arquivos
   que recusa essa chamada cai no `os.scandir`. `somar()` roda no fim: link físico (FileId repetido) conta uma
   vez só, na ordem da árvore, e tudo fica ordenado do maior para o menor.
-- `app/principal.py`: a janela. A árvore é preenchida sob demanda (só monta os filhos quando a pasta é
+- `app/mapa.py`: a aba Mapa (estilo SpaceSniffer). `quadrados()` é o treemap "squarified"; `montar()` calcula
+  os blocos nível por nível (BFS, para o limite cortar o fundo e não pastas do topo): item com menos de 14×14 px,
+  além do 250º da pasta ou depois de 6000 blocos no total vira um bloco "N itens menores". `Mapa` desenha num
+  Canvas (um retângulo por bloco, texto só onde cabe, cortado pela largura média da letra para não medir
+  texto a texto) e acha o bloco sob o mouse pelo `find_overlapping` (o de cima é o mais fundo).
+- `app/formato.py`: tamanho, número e porcentagem do jeito brasileiro (vírgula decimal).
+- `app/principal.py`: a janela. A lista ao lado do mapa (`_selecionou_no_mapa`) mostra os 1000 maiores
+  arquivos de dentro da pasta clicada, com cache por pasta; `tk.PanedWindow` (não o ttk, porque o ttk não
+  troca de horizontal para vertical) põe a lista ao lado na janela larga e embaixo abaixo de 1300 px. A árvore é preenchida sob demanda (só monta os filhos quando a pasta é
   aberta, no máximo 1000 por pasta, o resto vira uma linha com a soma). O ícone e a barra de cada linha são
   uma imagem só (`Imagens`), porque o Treeview só aceita imagem na primeira coluna e não colore coluna.
 - `app/atualizador.py`: cópia adaptada do `camera-ia/app/atualizador.py` (releases do GitHub, SHA-256, pasta
@@ -40,6 +48,8 @@ O `.venv` não tem pacote nenhum: existe só para o atalho ter um `pythonw` de c
   `FILE_FLAG_BACKUP_SEMANTICS`). O botão "Reabrir como administrador" relança o `iniciar.pyw` por
   `ShellExecuteW runas` com `--escanear <letra>`.
 - **Só lê.** Apagar, mover ou abrir no Explorador não existem de propósito (não foram pedidos).
+- **A trilha do mapa tem altura fixa.** Se ela crescer ao ganhar botão, o Canvas encolhe e o mapa é desenhado
+  duas vezes a cada clique (foi o que deixava entrar e voltar de pasta em 0,8 a 1 s).
 
 ## Como testar sem aparecer na tela dele
 
@@ -52,6 +62,11 @@ Fora da tela (`+30000+30000`) o Tk não pinta e a foto sai branca.
 C: com 1,65 milhão de arquivos e 352 mil pastas (1,7 TB): 34 s com o disco frio, 19 a 23 s nas leituras
 seguintes; somar e ordenar no fim leva 0,6 s. 197 pastas sem acesso e 42 GB na linha laranja sem
 administrador.
+
+Mapa (2.0.0), janela 3440×1400 no C: inteiro: ~1300 a 1450 blocos; calcular e criar os itens 26 a 46 ms,
+pintar 90 a 136 ms; entrar ou voltar de pasta 124 a 141 ms; passar o mouse 0,07 ms; clique na raiz 0,3 s na
+primeira vez (junta os maiores de 1,65 milhão de arquivos) e 25 ms depois. O grosso da pintura são os
+retângulos, não o texto (sem texto: 62 ms).
 
 Não testado: o caminho como administrador (o UAC pede confirmação dele) e a atualização de ponta a ponta
 (não tem release publicada).

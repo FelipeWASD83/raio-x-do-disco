@@ -1,16 +1,23 @@
 # Raio-X do Disco
 
-Escolhe um disco, lê tudo o que tem nele e mostra o que está ocupando espaço: as pastas do maior para o menor,
-com quanto cada uma ocupa e quanto isso pesa dentro da pasta de cima, e a lista dos 500 maiores arquivos.
+Escolhe um disco, lê tudo o que tem nele e mostra o que está ocupando espaço: um mapa de blocos no estilo do
+SpaceSniffer (cada pasta do tamanho do espaço que ocupa), as pastas em lista do maior para o menor e os 500
+maiores arquivos.
 
 ## Como usar
 
 1. Abra pelo atalho **Raio-X do Disco** no Menu Iniciar.
 2. Escolha o disco na lista de cima (ela mostra quanto cada um tem usado e livre) e clique em **Escanear**.
    O C: inteiro leva uns 20 a 35 segundos.
-3. Na aba **Pastas**, clique na setinha de uma pasta para ver o que tem dentro, já do maior para o menor.
+3. A aba **Mapa** abre sozinha: cada bloco é uma pasta ou um arquivo, do tamanho do espaço que ocupa.
+   - **Um clique** numa pasta mostra na lista ao lado os arquivos de dentro dela (inclusive das subpastas),
+     do maior para o menor. Clicar num arquivo marca ele na lista.
+   - **Dois cliques** entram na pasta. A trilha em cima volta para qualquer nível; o **Backspace** sobe um.
+   - Passando o mouse, a linha embaixo do mapa mostra o caminho completo e o tamanho.
+   - Na janela estreita (monitor em pé) a lista vai para baixo do mapa. A divisória pode ser arrastada.
+4. Na aba **Pastas**, a mesma coisa em forma de lista: clique na setinha para abrir, já do maior para o menor.
    A barra azul é quanto aquilo ocupa da pasta de cima.
-4. Na aba **Maiores arquivos** ficam os 500 arquivos que mais ocupam, com a pasta de cada um.
+5. Na aba **Maiores arquivos** ficam os 500 arquivos que mais ocupam no disco inteiro, com a pasta de cada um.
 
 **Reabrir como administrador** (botão no canto) lê também as pastas que o Windows esconde de usuário comum,
 como os pontos de restauração. Sem isso o resultado continua certo, só que essas pastas aparecem como
@@ -21,7 +28,7 @@ como os pontos de restauração. Sem isso o resultado continua certo, só que es
 - **Em disco**: o espaço que o arquivo ocupa de verdade. É o número que importa para liberar espaço.
 - **Tamanho**: o tamanho do arquivo. Pode ser maior que "em disco" (arquivo comprimido pelo Windows, ou do
   OneDrive que está só na nuvem) ou um pouco menor (o disco guarda em blocos).
-- **Linha laranja** (na raiz do disco): o que está usado no disco mas não aparece em arquivo nenhum
+- **Bloco ou linha laranja** (na raiz do disco): o que está usado no disco mas não aparece em arquivo nenhum
   (o índice do NTFS, pontos de restauração, pastas sem acesso).
 - **Atalho para outra pasta, não somado aqui**: junção ou link simbólico. O conteúdo já é contado no lugar
   de verdade.

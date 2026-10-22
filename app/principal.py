@@ -10,29 +10,14 @@ import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
 
-from app import atualizador, config, leitor
+from app import atualizador, config, leitor, mapa
+from app.formato import numero, porcento, tamanho
 
 LIMITE = 1000  # itens por pasta na árvore; o resto vira uma linha só com a soma
+LIMITE_PAINEL = 1000  # arquivos na lista da pasta clicada no mapa
+LARGURA_EM_PE = 1300  # janela mais estreita que isso (o monitor em pé) põe a lista embaixo do mapa
 AZUL = "#2f6fd6"
 CINZA_LIVRE = "#dfe3e8"
-
-
-def tamanho(n: float) -> str:
-    if n < 1024:
-        return f"{int(n)} bytes"
-    for unidade in ("KB", "MB", "GB", "TB", "PB"):
-        n /= 1024
-        if n < 1000 or unidade == "PB":
-            return (f"{n:.1f} {unidade}" if n < 100 else f"{n:.0f} {unidade}").replace(".", ",")
-    return ""
-
-
-def numero(n: int) -> str:
-    return f"{n:,}".replace(",", ".")
-
-
-def porcento(frac: float) -> str:
-    return f"{frac * 100:.1f} %".replace(".", ",")
 
 
 def _disco_de(x) -> int:
@@ -104,6 +89,7 @@ class App:
         self._raiz_escolhida = ""
         self._info_att: dict | None = None
         self._att_pronta = None
+        self._pasta_painel = None
         self.admin = leitor.eh_admin()
         if self.admin:
             leitor.ligar_privilegio_de_backup()
@@ -147,22 +133,24 @@ class App:
         topo = ttk.Frame(self.tk, padding=(14, 12, 14, 4))
         topo.pack(fill="x")
         ttk.Label(topo, text="Disco", style="Titulo.TLabel").pack(side="left", padx=(0, 8))
-        self.combo = ttk.Combobox(topo, state="readonly", width=78, postcommand=self._carregar_discos)
+        self.combo = ttk.Combobox(topo, state="readonly", width=70, postcommand=self._carregar_discos)
         self.combo.pack(side="left")
         self.combo.bind("<<ComboboxSelected>>", self._escolheu_disco)
         self.bt_escanear = ttk.Button(topo, text="Escanear", command=self.escanear)
         self.bt_escanear.pack(side="left", padx=(10, 4))
         self.bt_parar = ttk.Button(topo, text="Parar", command=self.parar, state="disabled")
         self.bt_parar.pack(side="left")
-        if self.admin:
-            ttk.Label(topo, text="Administrador: lê até as pastas protegidas", style="Fraco.TLabel").pack(side="right")
-        else:
-            ttk.Button(topo, text="Reabrir como administrador", command=self.reabrir_como_admin).pack(side="right")
-
         uso = ttk.Frame(self.tk, padding=(14, 4, 14, 0))
         uso.pack(fill="x")
-        self.lbl_uso = ttk.Label(uso, text="")
-        self.lbl_uso.pack(anchor="w")
+        linha_uso = ttk.Frame(uso)
+        linha_uso.pack(fill="x")
+        self.lbl_uso = ttk.Label(linha_uso, text="")
+        self.lbl_uso.pack(side="left")
+        # aqui embaixo e não ao lado do Escanear: no monitor em pé (1080 de largura) não cabe na linha de cima
+        if self.admin:
+            ttk.Label(linha_uso, text="Administrador: lê até as pastas protegidas", style="Fraco.TLabel").pack(side="right")
+        else:
+            ttk.Button(linha_uso, text="Reabrir como administrador", command=self.reabrir_como_admin).pack(side="right")
         self.cv_uso = tk.Canvas(uso, height=12, highlightthickness=0, bd=0, background=CINZA_LIVRE)
         self.cv_uso.pack(fill="x", pady=(4, 0))
         self.cv_uso.bind("<Configure>", lambda e: self._desenhar_uso())
@@ -175,10 +163,42 @@ class App:
         self.lbl_status.pack(anchor="w", pady=(6, 0))
         self.lbl_caminho = ttk.Label(prog, text="", style="Fraco.TLabel")
         self.lbl_caminho.pack(anchor="w")
+        prog.bind("<Configure>", lambda e: self.lbl_status.configure(wraplength=max(300, e.width - 30)))
 
         abas = ttk.Notebook(self.tk)
         abas.pack(fill="both", expand=True, padx=14, pady=(4, 6))
         self.abas = abas
+
+        f0 = ttk.Frame(abas)
+        abas.add(f0, text="  Mapa  ")
+        self.divisao = tk.PanedWindow(f0, orient="horizontal", sashwidth=8, bd=0, sashrelief="flat",
+                                      background="#e3e7ec")
+        self.divisao.pack(fill="both", expand=True)
+        self._em_pe: bool | None = None
+        self.mapa = mapa.Mapa(self.divisao, self._selecionou_no_mapa)
+        painel = ttk.Frame(self.divisao, padding=(10, 6, 0, 0))
+        self.lbl_painel = ttk.Label(painel, text="Clique numa pasta do mapa para ver os arquivos dela.",
+                                    style="Titulo.TLabel")
+        self.lbl_painel.pack(anchor="w")
+        self.lbl_painel2 = ttk.Label(painel, text="", style="Fraco.TLabel")
+        self.lbl_painel2.pack(anchor="w", pady=(2, 6))
+        caixa = ttk.Frame(painel)
+        caixa.pack(fill="both", expand=True)
+        self.lista_pasta = ttk.Treeview(caixa, columns=("disco", "tam", "nome", "onde"), show="headings",
+                                        selectmode="browse")
+        for col, titulo, larg, ancora, estica in (("disco", "Em disco", 95, "e", False), ("tam", "Tamanho", 95, "e", False),
+                                                  ("nome", "Arquivo", 300, "w", True), ("onde", "Subpasta", 220, "w", True)):
+            self.lista_pasta.heading(col, text=titulo, anchor=ancora)
+            self.lista_pasta.column(col, width=larg, anchor=ancora, stretch=estica, minwidth=50)
+        self.lista_pasta.tag_configure("aviso", foreground="#8a8f98")
+        self._rolagem(caixa, self.lista_pasta)
+        self._linhas_painel: list[tuple] = []
+        self._cache_painel: dict[int, list] = {}
+        self.divisao.add(self.mapa, minsize=300, stretch="always")
+        self.divisao.add(painel, minsize=260, stretch="never")
+        self._divisoria_arrastada = False
+        self.divisao.bind("<B1-Motion>", lambda e: setattr(self, "_divisoria_arrastada", True), add="+")
+        f0.bind("<Configure>", self._ajustar_divisao)
 
         f1 = ttk.Frame(abas)
         abas.add(f1, text="  Pastas  ")
@@ -294,6 +314,9 @@ class App:
         self.tree.delete(*self.tree.get_children())
         self.lista.delete(*self.lista.get_children())
         self.pastas_da_arvore.clear()
+        self.mapa.limpar()
+        self._limpar_painel()
+        self._cache_painel.clear()
         self.leitura = None
         self.barra_prog["value"] = 0
 
@@ -348,6 +371,84 @@ class App:
 
         for disco, tam, pasta, nome in l.maiores_arquivos(500):
             self.lista.insert("", "end", values=(tamanho(disco), tamanho(tam), nome, pasta))
+
+        self.abas.select(0)
+        self.mapa.mostrar(r, nao_achado)
+        self._selecionou_no_mapa(r, None)
+
+    # ---------- mapa e lista da pasta clicada ----------
+
+    def _ajustar_divisao(self, e) -> None:
+        """Lista ao lado do mapa na tela larga, embaixo na estreita. A divisória acompanha o tamanho da janela até
+        ele arrastá-la; daí fica onde ele pôs, até a janela trocar de larga para estreita ou o contrário."""
+        em_pe = e.width < LARGURA_EM_PE
+        if em_pe != self._em_pe:
+            self._em_pe = em_pe
+            self._divisoria_arrastada = False
+            self.divisao.configure(orient="vertical" if em_pe else "horizontal")
+        if self._divisoria_arrastada:
+            return
+        self.divisao.update_idletasks()
+        if em_pe:
+            self.divisao.sash_place(0, 0, int(e.height * 0.62))
+        else:
+            self.divisao.sash_place(0, e.width - min(760, int(e.width * 0.36)), 0)
+
+    def _limpar_painel(self) -> None:
+        self.lista_pasta.delete(*self.lista_pasta.get_children())
+        self._linhas_painel = []
+        self.lbl_painel.configure(text="Clique numa pasta do mapa para ver os arquivos dela.")
+        self.lbl_painel2.configure(text="")
+
+    def _arquivos_dentro(self, pasta: leitor.Pasta) -> list[tuple]:
+        """Os maiores arquivos de dentro da pasta, inclusive das subpastas: (em disco, arquivo, pasta dele)."""
+        lista = self._cache_painel.get(id(pasta))
+        if lista is None:
+            def todos():
+                pilha = [pasta]
+                while pilha:
+                    p = pilha.pop()
+                    pilha.extend(p.pastas)
+                    for a in p.arquivos:
+                        yield a[2], a, p
+            lista = heapq.nlargest(LIMITE_PAINEL, todos(), key=lambda t: t[0])
+            self._cache_painel[id(pasta)] = lista
+        return lista
+
+    def _selecionou_no_mapa(self, pasta: leitor.Pasta, arquivo: tuple | None) -> None:
+        if self._linhas_painel and self._pasta_painel is pasta:
+            self._marcar_no_painel(arquivo)
+            return
+        self._pasta_painel = pasta
+        self.lista_pasta.delete(*self.lista_pasta.get_children())
+        lista = self._arquivos_dentro(pasta)
+        self._linhas_painel = []
+        base = len(pasta.caminho.rstrip("\\"))
+        for disco, a, dono in lista:
+            sub = dono.caminho[base:].lstrip("\\")
+            nome, tags = a[0], ()
+            if a[3] == -1:
+                nome += "   (link físico, já contado)"
+                tags = ("aviso",)
+            iid = self.lista_pasta.insert("", "end", values=(tamanho(disco), tamanho(a[1]), nome, sub), tags=tags)
+            self._linhas_painel.append((a, iid))
+        nome = pasta.nome if pasta.pai is not None else pasta.caminho
+        self.lbl_painel.configure(text=f"{nome}   ·   {tamanho(pasta.disco)}")
+        texto = f"{numero(pasta.n_arquivos)} arquivos aqui dentro, contando as subpastas"
+        if pasta.n_arquivos > LIMITE_PAINEL:
+            texto += f"; mostrando os {numero(LIMITE_PAINEL)} maiores"
+        self.lbl_painel2.configure(text=texto)
+        self._marcar_no_painel(arquivo)
+
+    def _marcar_no_painel(self, arquivo: tuple | None) -> None:
+        iid = next((i for a, i in self._linhas_painel if a is arquivo), None) if arquivo is not None else None
+        if iid:
+            self.lista_pasta.selection_set(iid)
+            self.lista_pasta.see(iid)
+        else:
+            self.lista_pasta.selection_set(())
+            if self._linhas_painel:
+                self.lista_pasta.see(self._linhas_painel[0][1])
 
     # ---------- árvore ----------
 
